@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <errno.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,10 +12,10 @@
 #include <libgen.h>
 #include <dirent.h>
 
-// TODO: Dynamic memory allocation for computed paths
-// (very importanto)
+// TODO: (PROJECT WIDE) Dynamic memory allocation for computed paths
+
 #define LOG(format, ...) do { \
-		fprintf(stderr, "%s:%i: ", __FILE__, __LINE__); \
+		fprintf(stderr, "%s:%i: ", __FILE_NAME__, __LINE__); \
 		fprintf(stderr, format,##__VA_ARGS__); \
 		fprintf(stderr, "\n"); \
 	} while(0)
@@ -26,7 +27,7 @@
 
 #define ASSERT(condition, format, ...) do { \
 		if (!(condition)) { \
-			fprintf(stderr, "%s:%i: ASSERTION FAILED: `" #condition "`\n  ", __FILE__, __LINE__); \
+			fprintf(stderr, "%s:%i: ASSERTION FAILED: `" #condition "`\n  ", __FILE_NAME__, __LINE__); \
 			fprintf(stderr, format,##__VA_ARGS__); \
 			exit(-1); \
 		} \
@@ -96,11 +97,34 @@ void get_link_path(const char *link, char *buf, ssize_t bufsize) {
 		path_dir = dirname(path_dir);
 
 		snprintf(link_copy, bufsize, "%s/%s", path_dir, buf);
+		free(path_dir);
 	} else {
 		strcpy(link_copy, buf);
 	}
 
 	ASSERT(realpath(link_copy, buf) != NULL, "error: not enough space reserved for link (errno = %i)", errno);
+}
+
+
+void create_symlink(const char *target, const char *link_name) {
+	int len = strlen(link_name);
+
+	bool free_link = false;
+	if (link_name[len - 1] == '/') { // remove trailing slashes
+		char *link = strdup(link_name);
+		free_link = true;
+
+		int i = len - 1;
+		while (link[i] == '/') i--;
+
+		if (i >= 0) link[i+1] = '\0';
+
+		link_name = link;
+	}
+
+	ASSERT(symlink(target, link_name) == 0, "error: symlink failed with errno = %i", errno);
+
+	if (free_link) free((void *)link_name);
 }
 
 /// May return NULL if there is no next argument
@@ -261,7 +285,7 @@ void handle_regular_file(const char *path, const char *target, bool symlink_resu
 		}
 	}
 	if (symlink_resulting) {
-		ASSERT(symlink(target, path) == 0, "error: symlink failed with errno = %i", errno);
+		create_symlink(target, path);
 	}
 }
 
@@ -354,11 +378,8 @@ void handle_directory(const char *path, const char *target) {
 		}
 	} else if (S_ISDIR(target_sd.st_mode)) {
 		printf("a directory already exists at `%s` (you might have forgotten --recursive)\n", target);
-		char prompt = prompt_user("do you want to (O) overwrite it, merge the two and (S) symlink the whole directory or do nothing?", "osn", 'n');
-		if (prompt == 'o') {
-			remove_recursive(target);
-			ASSERT(rename(path, target) == 0, "error: rename failed with errno = %i", errno);
-		} else if (prompt == 's') {
+		char prompt = prompt_user("do you want to merge the two and symlink the whole directory?", "yn", 'n');
+		if (prompt == 'y') {
 			merge_directory(path, target);
 			// `merge_directory` removes `path`
 		} else {
@@ -366,7 +387,7 @@ void handle_directory(const char *path, const char *target) {
 		}
 	}
 	DLOG("log: creating symlink `%s` to `%s`", path, target);
-	ASSERT(symlink(target, path) == 0, "error: symlink failed with errno = %i", errno);
+	create_symlink(target, path);
 }
 
 void add_path(const char *path, const char *target) {
