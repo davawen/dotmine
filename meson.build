@@ -18,5 +18,8 @@ endif
 executable(
   name,
   'src/main.c',
+  'src/flags.c',
+  'src/utils.c',
+  include_directories: include_directories('include'),
   install : true
 )
