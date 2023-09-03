@@ -63,3 +63,8 @@ void create_directory(const char *path);
 /// Basically the same as `mkdir -p $(dirname <path>)`.
 /// Takes a char *, as it modifies its input, but every modification is reversed by the end of the function
 void create_structure(char *path);
+
+/// takes a path and resolves every `..`, `.` and `/` in it, according to the given pwd.
+/// writes the result to `res`
+/// returns 0 on success and -1 if the given buffer wasn't big enough
+int normalize_path(const char *pwd, size_t pwd_len, const char * src, size_t src_len, char *buf, size_t buf_len);

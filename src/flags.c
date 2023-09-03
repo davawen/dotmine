@@ -31,10 +31,11 @@ void init_flags(int argc, char **argv, const char *default_dir) {
 	flags.home = getenv("HOME");
 
 	flags.help = false;
+	flags.recursive = false;
+
 	static char buf[1024];
 	int n = snprintf(buf, 1024, "%s/%s", flags.home, default_dir);
 	ASSERT(n <= 1023, "error: not enough space for path");
-
 	flags.mine = buf;
 }
 
@@ -42,24 +43,29 @@ const char *parse_args() {
 	// parse every flag
 	for (flags.i = 1; flags.i < flags.argc; flags.i++) {
 		// -- means end of flags
-		if (strcmp(flags.argv[flags.i], "--") == 0) {
-			flags.argv[flags.i] = NULL;
+		char **curr = &flags.argv[flags.i];
+		if (strcmp(*curr, "--") == 0) {
+			*curr = NULL;
 			break;
 		}
 		
-		if (flags.argv[flags.i][0] == '-') {
-			if (strcmp(flags.argv[flags.i], "--help") == 0 || strcmp(flags.argv[flags.i], "-h") == 0) {
+		if ((*curr)[0] == '-') {
+			if (strcmp(*curr, "--help") == 0 || strcmp(*curr, "-h") == 0) {
 				flags.help = true;
-			} else if (strcmp(flags.argv[flags.i], "--mine") == 0) {
-				flags.argv[flags.i] = NULL;
-				flags.i++;
+			} else if (strcmp(*curr, "--version") == 0 || strcmp(*curr, "-v") == 0) {
+				flags.version = true;
+			} else if (strcmp(*curr, "--recursive") == 0 || strcmp(*curr, "-r") == 0) {
+				flags.recursive = true;
+			} else if (strcmp(*curr, "--mine") == 0) {
+				*curr = NULL;
+				curr = &flags.argv[++flags.i];
 				if (flags.i >= flags.argc) ERROR("error: no value given to option --mine");
-				flags.mine = flags.argv[flags.i];
+				flags.mine = *curr;
 			} else {
-				ERROR("error: unknown option %s", flags.argv[flags.i]);
+				ERROR("error: unknown option %s", *curr);
 			}
 
-			flags.argv[flags.i] = NULL;
+			*curr = NULL;
 		}
 	}
 

@@ -67,7 +67,6 @@ void merge_directory(const char *path, const char *target) {
 					continue;
 				}
 
-
 				char new_path[1024];
 				const char *separator = path[strlen(path)-1] == '/' ? "" : "/";
 				size_t n = snprintf(new_path, 1024, "%s%s%s", path, separator, ep->d_name);
@@ -132,6 +131,9 @@ void handle_directory(const char *path, const char *target) {
 	create_symlink(target, path);
 }
 
+/// expects path to be a directory
+void handle_directory_recursive(const char *path, const char *target); // (forward declaration)
+
 void add_path(const char *path, const char *target) {
 	struct stat sd = { 0 };
 	if (lstat(path, &sd) != 0) {
@@ -159,8 +161,43 @@ void add_path(const char *path, const char *target) {
 		handle_regular_file(path, target, true);
 	} else if (S_ISDIR(sd.st_mode)) {
 		DLOG("got directory");
-		handle_directory(path, target);
+		if (flags.recursive) {
+			handle_directory_recursive(path, target);
+		} else {
+			handle_directory(path, target);
+		}
 	} else {
 		ERROR("error: file kind not handled: %u", sd.st_mode);
 	}
+}
+
+void handle_directory_recursive(const char *path, const char *target) {
+	create_directory(target);
+
+	DIR *dp = opendir(path);
+	ASSERT(dp != NULL, "error: opendir failed with errno = %i", errno);
+
+	errno = 0;
+	int readdir_errno = 0;
+	for (struct dirent *ep = readdir(dp); ep != NULL; ep = readdir(dp)) {
+		readdir_errno = errno;
+		if (strcmp(ep->d_name, ".") == 0 || strcmp(ep->d_name, "..") == 0) { // avoid self recursion
+			continue;
+		}
+
+		char new_path[1024];
+		const char *separator = path[strlen(path)-1] == '/' ? "" : "/";
+		size_t n = snprintf(new_path, 1024, "%s%s%s", path, separator, ep->d_name);
+		ASSERT(n <= 1023, "error: not enough space allocated for path");
+
+		char new_target[1024];
+		separator = target[strlen(target)-1] == '/' ? "" : "/";
+		n = snprintf(new_target, 1024, "%s%s%s", target, separator, ep->d_name);
+		ASSERT(n <= 1023, "error: not enough space allocated for path");
+
+		add_path(new_path, new_target);
+		errno = 0;
+	}
+	ASSERT(readdir_errno == 0, "error: readdir failed with errno = %i", readdir_errno);
+	ASSERT(closedir(dp) == 0, "error: closedir failed with errno = %i", errno);
 }

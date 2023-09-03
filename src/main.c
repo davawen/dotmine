@@ -20,6 +20,12 @@
 // TODO: (PROJECT WIDE) Dynamic memory allocation for computed paths
 
 void command_add() {
+	if (flags.help) {
+		printf("usage: " NAME " [--mine MINE] [-r|--recursive] add <path>\n\n");
+		printf("Adds a file or a directory to the mine\n");
+		return;
+	}
+
 	// move `path` to ~/dotmine/`path`
 	// symlink `path` to ~/dotmine/`path`
 	// done!
@@ -44,13 +50,22 @@ void command_add() {
 }
 
 void command_show() {
+	if (flags.help) {
+		printf("usage: " NAME " [--mine MINE] show\n\n");
+		return;
+	}
 }
 
 int main(int argc, char **argv) {
 	init_flags(argc, argv, "dotmine");
 	const char *subcommand = parse_args();
 
-	if (subcommand != NULL && !flags.help) {
+	if (flags.version) {
+		printf(NAME ": version " VERSION "\n");
+		return 0;
+	}
+
+	if (subcommand != NULL) {
 		#define COMMAND(name) do { \
 			if (strcmp(subcommand, #name) == 0) { \
 				command_##name(); \
@@ -62,20 +77,25 @@ int main(int argc, char **argv) {
 
 		#undef COMMAND
 
-		ERROR("error: unknown subcommand \"%s\"", subcommand);
-	} else {
-		printf(NAME ": version " VERSION "\n");
-		printf("usage: " NAME " [options] <subcommand> args...\n\n");
-		printf("options:\n");
-		printf("  -h, --help Show this help, or help about the given subcommand\n");
-		printf("  --mine     Set location of dotmine folder (default: ~/dotmine)\n");
-		printf("\n");
-		printf("subcommands:\n");
-		printf("    add <path> \n");
-		printf("        Adds a file or a directory to the mine\n");
-		printf("    show\n");
-		printf("        Show the tree of files in the mine and where they point to\n");
+		if (!flags.help) {
+			printf("error: unknown subcommand \"%s\"\n", subcommand);
+			printf("you can get information about available subcommands using `dotmine --help`\n");
+			return -1;
+		}
 	}
+
+	printf("usage: " NAME " [options] <subcommand> args...\n\n");
+	printf("options:\n");
+	printf("  -h, --help      Show this help, or help about the given subcommand\n");
+	printf("  -v, --version   Show the version\n");
+	printf("  -r, --recursive Don't symlink directories, always traverse them and symlink files\n");
+	printf("  --mine          Set location of dotmine folder (default: ~/dotmine)\n");
+	printf("\n");
+	printf("subcommands:\n");
+	printf("    add <path> \n");
+	printf("        Adds a file or a directory to the mine\n");
+	printf("    show\n");
+	printf("        Show the tree of files in the mine and where they point to\n");
 
 	return 0;
 }

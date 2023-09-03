@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include "utils.h"
 
 #include <ctype.h>
@@ -22,26 +24,21 @@ bool strstartswith(const char *s, const char *prefix) {
 }
 
 void get_link_path(const char *link, char *buf, ssize_t bufsize) {
-	ssize_t n = readlink(link, buf, 1024);
+	char link_value[bufsize];
+
+	ssize_t n = readlink(link, link_value, bufsize);
 	ASSERT(n != -1, "error: readlink failed with errno = %i", errno);
 	ASSERT(n < bufsize-1, "error: not enough space for symbolic link path"); // leave one character for null termination
 	ASSERT(n > 0, "error: empty link");
-	buf[n] = '\0';
+	link_value[n] = '\0';
 
-	char link_copy[bufsize];
+	char *link_dir = strdup(link);
+	link_dir = dirname(link_dir);
+	
+	int result = normalize_path(link_dir, strlen(link_dir), link_value, strlen(link_value), buf, bufsize);
+	ASSERT(result == 0, "error: not enough space reserved for link");
 
-	// symbolic link path may be relative
-	if (*buf != '/') {
-		char *path_dir = strdup(link);
-		path_dir = dirname(path_dir);
-
-		snprintf(link_copy, bufsize, "%s/%s", path_dir, buf);
-		free(path_dir);
-	} else {
-		strcpy(link_copy, buf);
-	}
-
-	ASSERT(realpath(link_copy, buf) != NULL, "error: not enough space reserved for link (errno = %i)", errno);
+	free(link_dir);
 }
 
 char *get_target_path(const char *path) {
@@ -189,3 +186,62 @@ void create_structure(char *path) {
 	}
 }
 
+int normalize_path(const char *pwd, size_t pwd_len, const char * src, size_t src_len, char *buf, size_t buf_len) {
+	char *res = buf;
+	size_t res_idx = 0;
+
+	const char * ptr = src;
+	const char * end = &src[src_len];
+	const char * next;
+
+	if (src_len == 0 || src[0] != '/') {
+		// relative path
+		size_t needed_len = pwd_len + 1 + src_len + 1;
+		if ( needed_len > buf_len) return -1;
+
+		memcpy(res, pwd, pwd_len);
+		res_idx = pwd_len;
+	} else {
+		size_t needed_len = (src_len > 0 ? src_len : 1) + 1;
+		if (needed_len > buf_len) return -1;
+
+		res_idx = 0;
+	}
+
+	for (ptr = src; ptr < end; ptr=next+1) {
+		size_t len;
+		next = memchr(ptr, '/', end-ptr);
+		if (next == NULL) {
+			next = end;
+		}
+		len = next-ptr;
+		switch(len) {
+			case 2:
+				if (ptr[0] == '.' && ptr[1] == '.') {
+					const char *slash = memrchr(res, '/', res_idx);
+					if (slash != NULL) {
+						res_idx = slash - res;
+					}
+					continue;
+				}
+				break;
+			case 1:
+				if (ptr[0] == '.') {
+					continue;
+
+				}
+				break;
+			case 0:
+				continue;
+		}
+		res[res_idx++] = '/';
+		memcpy(&res[res_idx], ptr, len);
+		res_idx += len;
+	}
+
+	if (res_idx == 0) {
+		res[res_idx++] = '/';
+	}
+	res[res_idx] = '\0';
+	return 0;
+}

@@ -12,6 +12,8 @@ extern struct Flags {
 	const char *home;
 
 	bool help;
+	bool version;
+	bool recursive;
 	const char *mine;
 } flags;
 
