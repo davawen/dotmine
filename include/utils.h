@@ -16,8 +16,9 @@
 
 #define ASSERT(condition, format, ...) do { \
 		if (!(condition)) { \
-			fprintf(stderr, "%s:%i: ASSERTION FAILED: `" #condition "`\n  ", __FILE_NAME__, __LINE__); \
+			fprintf(stderr, "%s:%i: ASSERTION FAILED: `" #condition "`\n", __FILE_NAME__, __LINE__); \
 			fprintf(stderr, format,##__VA_ARGS__); \
+			fprintf(stderr, "\n"); \
 			exit(-1); \
 		} \
 	} while(0)

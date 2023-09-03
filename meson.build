@@ -1,5 +1,5 @@
 project('dotmine', 'c',
-  version : '0.1',
+  version : '0.2',
   default_options : ['warning_level=2', 'c_std=gnu11'])
 
 name = meson.project_name()
