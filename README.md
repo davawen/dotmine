@@ -16,15 +16,15 @@ If you instead wish to symlink every inner file, use the `--recursive` flag:
 ```
 $ dotmine add ~/dir
 
-dir                dir -> ~/dotmine/dir
-└file1     ==>    
-└file2
+dir      |     |  dir -> ~/dotmine/dir
+└file1   | ==> |
+└file2   |     |
 
 $ dotmine add --recursive ~/dir
 
-dir                dir
-└file1     ==>     └file1 -> ~/dotmine/dir/file1
-└file2             └file2 -> ~/dotmine/dir/file2
+dir      |     |  dir
+└file1   | ==> |  └file1 -> ~/dotmine/dir/file1
+└file2   |     |  └file2 -> ~/dotmine/dir/file2
 ```
 
 TODO: stow
